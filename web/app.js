@@ -289,6 +289,15 @@ async function signOut() {
   await client.auth.signOut();
 }
 
+// Log out when the tab/window is closed.
+window.addEventListener('beforeunload', () => {
+  try {
+    client.auth.signOut();
+  } catch {
+    // Ignore unload errors; session will be cleared on next load if signOut succeeds.
+  }
+});
+
 async function fetchAllProjects() {
   const { data, error } = await client
     .from('projects')
