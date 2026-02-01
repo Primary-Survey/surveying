@@ -609,15 +609,45 @@ async function handleSaveProjectEdits() {
 
   if (!window.confirm(`Are you sure you want to ${parts.join(', ')}?`)) return;
 
-  // Persist in one RPC so resequencing happens server-side.
-  // Requires SQL function public.apply_project_edits(...)
-  const { error } = await client.rpc('apply_project_edits', {
-    p_project_id: editState.projectId,
-    p_name: editState.name,
-    p_address: editState.address,
-    p_delete_point_ids: deletes,
-  });
-  if (error) throw error;
+  // Persist edits directly (no RPC required).
+  if (rename || readdr) {
+    const { error: projErr } = await client
+      .from('projects')
+      .update({ name: editState.name, address: editState.address })
+      .eq('id', editState.projectId);
+    if (projErr) throw projErr;
+  }
+
+  if (deletes.length) {
+    // Soft-delete points so UI filters them out.
+    const { error: delErr } = await client
+      .from('data_points')
+      .update({ deleted: true })
+      .in('id', deletes);
+    if (delErr) throw delErr;
+
+    // Resequence remaining points for consistent ordering.
+    const { data: remaining, error: remErr } = await client
+      .from('data_points')
+      .select('id,point_index')
+      .eq('project_id', editState.projectId)
+      .eq('deleted', false)
+      .order('point_index', { ascending: true });
+    if (remErr) throw remErr;
+
+    if (remaining && remaining.length) {
+      const results = await Promise.all(
+        remaining.map((row, idx) =>
+          client
+            .from('data_points')
+            .update({ point_index: idx + 1 })
+            .eq('id', row.id)
+        )
+      );
+      const reseqError = results.find((r) => r?.error)?.error;
+      if (reseqError) throw reseqError;
+    }
+  }
 
   // Refresh + keep the edited project selected so the main project screen + map update immediately
   await refresh(editState.projectId);
