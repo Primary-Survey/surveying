@@ -3,34 +3,152 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ouro Survey – Login</title>
+    <title>Primary Engineering Survey - Login</title>
     <link rel="stylesheet" href="styles.css" />
+
+    <!-- Supabase + XLSX (no build step) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   </head>
   <body>
-    <main class="page">
-      <section class="card">
-        <div class="form-side">
-          <h1>Ouro Survey</h1>
-          <p class="subtitle">Sign in to upload your projects</p>
-          <form class="login-form">
-            <label>
-              Email
-              <input type="email" name="email" placeholder="you@example.com" required />
-            </label>
-            <label>
-              Password
-              <input type="password" name="password" placeholder="••••••••" required />
-            </label>
-            <div class="actions">
-              <button type="submit" class="btn primary">Log in</button>
-              <button type="button" class="btn ghost">Create account</button>
+    <div class="app" id="app">
+      <header class="topbar" id="topbar" style="display: none">
+        <div class="brand">
+          <img class="brand-logo" src="./public/logo.png" alt="Primary Engineering Survey logo" />
+          <div class="brand-text">
+            <div class="brand-title">Primary Engineering Survey</div>
+            <div class="brand-subtitle">Admin dashboard</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="btn ghost" id="logoutBtn">Log out</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="left" id="leftPane">
+          <section class="login" id="loginPane">
+            <h1 class="login-title">Primary Engineering Survey</h1>
+            <p class="subtitle">Admin sign-in to view and export survey uploads</p>
+
+            <form class="login-form" id="loginForm">
+              <label>
+                Email
+                <input type="email" id="email" name="email" placeholder="you@example.com" required />
+              </label>
+              <label>
+                Password
+                <input type="password" id="password" name="password" placeholder="••••••••" required />
+              </label>
+              <div class="actions">
+                <button type="submit" class="btn primary" id="loginBtn">Log in</button>
+              </div>
+              <p class="status" id="status"></p>
+            </form>
+          </section>
+
+          <section id="dashboard" class="dashboard" style="display: none">
+            <div class="dash-row">
+              <h2>Projects</h2>
+              <div class="dash-actions">
+                <button class="btn" id="refreshBtn" type="button">Refresh</button>
+                <button class="btn" id="exportCsvBtn" type="button">Export CSV</button>
+                <button class="btn" id="exportXlsxBtn" type="button">Export XLSX</button>
+              </div>
             </div>
-          </form>
+
+            <div class="filters">
+              <label>
+                Project
+                <select id="projectSelect"></select>
+              </label>
+            </div>
+
+            <div class="project-list" id="projectList"></div>
+
+            <div class="table-wrap">
+              <table class="data-table" id="pointsTable">
+                <thead>
+                  <tr>
+                    <th>point_index</th>
+                    <th>descriptor</th>
+                    <th>lat</th>
+                    <th>long</th>
+                    <th>source</th>
+                    <th>Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="right" id="rightPane">
+          <div class="map" id="map"></div>
+          <div class="map-overlay" id="mapOverlay">
+            <div class="map-overlay-title">Map</div>
+            <div class="map-overlay-text" id="mapOverlayText">
+              Sign in and configure Google Maps API key to enable map pins.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div class="modal-backdrop" id="editModalBackdrop" style="display: none">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" id="editModalTitle">Edit Project</div>
+            <div class="modal-subtitle" id="editModalSubtitle"></div>
+          </div>
+          <button class="btn ghost" type="button" id="editModalCloseBtn">Close</button>
         </div>
-        <div class="logo-side">
-          <img src="./public/logo.png" alt="Ouro Survey logo" />
+
+        <div class="modal-body">
+          <div class="modal-form">
+            <label>
+              Name
+              <input id="editProjectName" type="text" />
+            </label>
+            <label>
+              Address
+              <input id="editProjectAddress" type="text" />
+            </label>
+            <div class="modal-actions">
+              <button class="btn primary" type="button" id="saveProjectBtn">Save changes</button>
+            </div>
+          </div>
+
+          <div class="modal-points">
+            <div class="modal-points-header">
+              <div class="modal-points-title">Points</div>
+              <div class="modal-points-hint"></div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="editPointsTable">
+                <thead>
+                  <tr>
+                    <th>point_index</th>
+                    <th>descriptor</th>
+                    <th>lat</th>
+                    <th>long</th>
+                    <th>Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
