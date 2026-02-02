@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/Logo.png",
       "resizeMode": "contain",
@@ -41,7 +41,9 @@
     "extra": {
       "eas": {
         "projectId": "51815d95-533d-416d-8bf6-39a2cdd50e88"
-      }
+      },
+      "SUPABASE_URL": "https://qpbphmfzoumxhilxzwib.supabase.co",
+      "SUPABASE_ANON_KEY": "sb_publishable_jadXBs8N-5o_lgg8X0u15w_y38CU08n"
     }
   }
 }
