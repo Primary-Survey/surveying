@@ -186,7 +186,7 @@ function renderPointPins(projectId) {
     .sort((a, b) => (a.point_index || 0) - (b.point_index || 0));
 
   if (!pts.length) {
-    setStatus('No GPS points found for this project (or lat/lng missing).', 'error');
+    setStatus('No GPS points found for this project (or lat/long missing).', 'error');
   }
 
   for (const p of pts) {
@@ -434,6 +434,23 @@ function formatDateTimeLocal(v) {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
+const MAIN_COLS = [
+  { key: 'point_index', label: 'point_index' },
+  { key: 'descriptor', label: 'descriptor' },
+  { key: 'lat', label: 'lat' },
+  { key: 'lng', label: 'long' },
+  { key: 'source', label: 'source' },
+  { key: 'created_at', label: 'created_at' },
+];
+
+const EDIT_COLS = [
+  { key: 'point_index', label: 'point_index' },
+  { key: 'descriptor', label: 'descriptor' },
+  { key: 'lat', label: 'lat' },
+  { key: 'lng', label: 'long' },
+  { key: 'created_at', label: 'created_at' },
+];
+
 function renderTable(rows) {
   const tbody = $('pointsTable').querySelector('tbody');
   tbody.innerHTML = '';
@@ -441,11 +458,10 @@ function renderTable(rows) {
   for (const r of rows) {
     const tr = document.createElement('tr');
 
-    const cols = ['point_index', 'descriptor', 'lat', 'lng', 'source', 'created_at'];
-    for (const c of cols) {
+    for (const c of MAIN_COLS) {
       const td = document.createElement('td');
-      const val = r[c];
-      if (c === 'created_at') td.textContent = formatDateTimeLocal(val);
+      const val = r[c.key];
+      if (c.key === 'created_at') td.textContent = formatDateTimeLocal(val);
       else td.textContent = val === null || val === undefined ? '' : String(val);
       tr.appendChild(td);
     }
@@ -563,11 +579,10 @@ function renderEditPointsTable() {
 
   for (const r of rows) {
     const tr = document.createElement('tr');
-    const cols = ['point_index', 'descriptor', 'lat', 'lng', 'created_at'];
-    for (const c of cols) {
+    for (const c of EDIT_COLS) {
       const td = document.createElement('td');
-      const val = r[c];
-      if (c === 'created_at') td.textContent = formatDateTimeLocal(val);
+      const val = r[c.key];
+      if (c.key === 'created_at') td.textContent = formatDateTimeLocal(val);
       else td.textContent = val === null || val === undefined ? '' : String(val);
       tr.appendChild(td);
     }
@@ -672,15 +687,15 @@ async function handleSaveProjectEdits() {
 }
 
 function exportCsv(rows) {
-  const cols = Object.keys(rows[0] || {
-    point_index: '',
-    descriptor: '',
-    lat: '',
-    lng: '',
-    source: '',
-    deleted: '',
-    created_at: '',
-  });
+  const cols = [
+    { key: 'point_index', label: 'point_index' },
+    { key: 'descriptor', label: 'descriptor' },
+    { key: 'lat', label: 'lat' },
+    { key: 'lng', label: 'long' },
+    { key: 'source', label: 'source' },
+    { key: 'deleted', label: 'deleted' },
+    { key: 'created_at', label: 'created_at' },
+  ];
 
   const escape = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
@@ -688,9 +703,9 @@ function exportCsv(rows) {
     return s;
   };
 
-  const lines = [cols.join(',')];
+  const lines = [cols.map((c) => c.label).join(',')];
   for (const r of rows) {
-    lines.push(cols.map((c) => escape(r[c])).join(','));
+    lines.push(cols.map((c) => escape(r[c.key])).join(','));
   }
 
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -706,7 +721,16 @@ function exportCsv(rows) {
 
 function exportXlsx(rows) {
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const mapped = rows.map((r) => ({
+    point_index: r.point_index,
+    descriptor: r.descriptor,
+    lat: r.lat,
+    long: r.lng,
+    source: r.source,
+    deleted: r.deleted,
+    created_at: r.created_at,
+  }));
+  const ws = XLSX.utils.json_to_sheet(mapped);
   XLSX.utils.book_append_sheet(wb, ws, 'data_points');
   XLSX.writeFile(wb, 'survey_export.xlsx');
 }
