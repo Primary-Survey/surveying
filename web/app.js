@@ -772,6 +772,14 @@ function buildExportFilename(ext) {
 window.addEventListener('DOMContentLoaded', () => {
   loadGoogleMaps();
 
+  // Theme toggle
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  applyTheme(savedTheme);
+  $('themeToggleBtn')?.addEventListener('click', () => {
+    const next = document.body.classList.contains('theme-dark') ? 'light' : 'dark';
+    applyTheme(next);
+  });
+
   // Modal wiring (use delegation so it survives any DOM quirks)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isEditModalOpen()) {
@@ -854,3 +862,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
   initClient().catch((e) => setStatus(e.message || String(e), 'error'));
 });
+
+function applyTheme(mode) {
+  if (mode === 'dark') {
+    document.body.classList.add('theme-dark');
+    localStorage.setItem('theme', 'dark');
+    const btn = $('themeToggleBtn');
+    if (btn) btn.textContent = 'Light mode';
+  } else {
+    document.body.classList.remove('theme-dark');
+    localStorage.setItem('theme', 'light');
+    const btn = $('themeToggleBtn');
+    if (btn) btn.textContent = 'Dark mode';
+  }
+}

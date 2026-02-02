@@ -12,6 +12,18 @@
   --btn-bg: #e2e8f0;
 }
 
+body.theme-dark {
+  color-scheme: dark;
+  --bg: #050505;
+  --panel: #0f1115;
+  --panel2: #0b0d12;
+  --border: #2a2d35;
+  --text: #f5f7fb;
+  --muted: #9ca3af;
+  --accent: #06b6d4;
+  --btn-bg: #111827;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -182,7 +194,7 @@ select:focus {
 .btn {
   border: 1px solid var(--border);
   background: var(--btn-bg);
-  color: #0f172a;
+  color: var(--text);
   padding: 10px 14px;
   border-radius: 10px;
   font-weight: 800;
