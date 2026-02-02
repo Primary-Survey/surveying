@@ -712,7 +712,7 @@ function exportCsv(rows) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'survey_export.csv';
+  a.download = buildExportFilename('csv');
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -732,7 +732,19 @@ function exportXlsx(rows) {
   }));
   const ws = XLSX.utils.json_to_sheet(mapped);
   XLSX.utils.book_append_sheet(wb, ws, 'data_points');
-  XLSX.writeFile(wb, 'survey_export.xlsx');
+  XLSX.writeFile(wb, buildExportFilename('xlsx'));
+}
+
+function buildExportFilename(ext) {
+  const selectedId = $('projectSelect')?.value || '';
+  const project = allProjects.find((p) => p.id === selectedId);
+  const name = project?.name ? project.name.trim() : 'All Projects';
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const stamp = `${y}-${m}-${d}`;
+  return `${name} - Survey - ${stamp}.${ext}`;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
