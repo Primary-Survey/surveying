@@ -17,10 +17,12 @@ import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabase/client';
 import { DataPoint, Project } from '../types';
+import { useTheme } from '../theme/ThemeProvider';
 
 type ViewMode = 'list' | 'map';
 
 export default function DashboardScreen() {
+  const { colors, toggle, mode } = useTheme();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [points, setPoints] = useState<DataPoint[]>([]);
@@ -191,6 +193,8 @@ export default function DashboardScreen() {
     await Sharing.shareAsync(uri);
   };
 
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -213,6 +217,9 @@ export default function DashboardScreen() {
           onPress={() => setViewMode('map')}
         >
           <Text style={styles.toggleText}>Map view</Text>
+        </Pressable>
+        <Pressable style={styles.toggleButton} onPress={toggle}>
+          <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
       </View>
 
@@ -318,10 +325,11 @@ function escapeCsv(v: unknown) {
   return s;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fb',
+    backgroundColor: colors.background,
   },
   centered: {
     flex: 1,
@@ -338,16 +346,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
   },
   toggleActive: {
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
   },
   toggleText: {
     fontWeight: '700',
-    color: '#0f172a',
+    color: colors.text,
   },
   exportRow: {
     flexDirection: 'row',
@@ -359,11 +367,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   exportText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontWeight: '700',
   },
   map: {
@@ -376,55 +384,56 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
+    color: colors.text,
   },
   projectCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
   },
   projectCardSelected: {
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
   },
   projectName: {
     fontWeight: '800',
-    color: '#0f172a',
+    color: colors.text,
   },
   projectAddress: {
-    color: '#64748b',
+    color: colors.muted,
     marginTop: 4,
   },
   formCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
     gap: 8,
   },
   label: {
-    color: '#475569',
+    color: colors.muted,
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.inputBg,
+    color: colors.text,
   },
   primaryButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
   primaryText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontWeight: '700',
   },
   disabled: {
@@ -436,7 +445,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: colors.border,
   },
   pointDetails: {
     flex: 1,
@@ -444,14 +453,14 @@ const styles = StyleSheet.create({
   },
   pointTitle: {
     fontWeight: '700',
-    color: '#0f172a',
+    color: colors.text,
   },
   pointText: {
-    color: '#475569',
+    color: colors.muted,
     fontSize: 12,
   },
   deleteButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,

@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { RootStackParamList } from '../../App';
 import { supabase } from '../supabase/client';
+import { useTheme } from '../theme/ThemeProvider';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors, toggle, mode } = useTheme();
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,11 +26,20 @@ export default function HomeScreen() {
     navigation.replace('Login');
   };
 
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.subtitle}>Signed in as {email || 'unknown'}</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Welcome</Text>
+            <Text style={styles.subtitle}>Signed in as {email || 'unknown'}</Text>
+          </View>
+          <Pressable style={styles.toggleButton} onPress={toggle}>
+            <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
+          </Pressable>
+        </View>
 
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Dashboard')}>
           <Text style={styles.primaryButtonText}>Open Survey Dashboard</Text>
@@ -42,10 +53,11 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fb',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -53,40 +65,58 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
+    gap: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
+    color: colors.text,
   },
   subtitle: {
-    color: '#64748b',
+    color: colors.muted,
   },
   primaryButton: {
     marginTop: 8,
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontWeight: '800',
   },
   secondaryButton: {
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#e2e8f0',
+    backgroundColor: colors.buttonBg,
   },
   secondaryButtonText: {
-    color: '#0f172a',
+    color: colors.text,
+    fontWeight: '700',
+  },
+  toggleButton: {
+    backgroundColor: colors.buttonBg,
+    borderColor: colors.border,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  toggleText: {
+    color: colors.text,
     fontWeight: '700',
   },
 });
