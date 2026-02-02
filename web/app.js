@@ -670,6 +670,10 @@ async function handleSaveProjectEdits() {
       );
       const reseqError = results.find((r) => r?.error)?.error;
       if (reseqError) throw reseqError;
+    } else {
+      // If no points remain, delete the project for housekeeping.
+      await deleteProjectById(editState.projectId, true);
+      return;
     }
   }
 
@@ -684,6 +688,24 @@ async function handleSaveProjectEdits() {
   closeEditModal();
 
   setStatus('Saved changes to the database.', 'ok');
+}
+
+async function deleteProjectById(projectId, silent = false) {
+  const { error } = await client.from('projects').delete().eq('id', projectId);
+  if (error) throw error;
+
+  // Refresh and reset selection if needed.
+  const currentSelected = $('projectSelect')?.value || '';
+  await refresh();
+  if (currentSelected === projectId) {
+    $('projectSelect').value = '';
+    onSelectionChanged(false);
+  }
+
+  if (!silent) {
+    setStatus('Project deleted.', 'ok');
+    closeEditModal();
+  }
 }
 
 function exportCsv(rows) {
@@ -777,6 +799,19 @@ window.addEventListener('DOMContentLoaded', () => {
     if (t && t.id === 'saveProjectBtn') {
       e.preventDefault();
       handleSaveProjectEdits().catch((err) => setStatus(err?.message || String(err), 'error'));
+      return;
+    }
+
+    // Delete project button
+    if (t && t.id === 'deleteProjectBtn') {
+      e.preventDefault();
+      if (!editState) return;
+      const msg =
+        'Delete this project? This cannot be undone and will remove all points for this project.';
+      if (!window.confirm(msg)) return;
+      deleteProjectById(editState.projectId).catch((err) =>
+        setStatus(err?.message || String(err), 'error')
+      );
       return;
     }
   });

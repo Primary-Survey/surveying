@@ -207,6 +207,12 @@ select:focus {
   background: transparent;
 }
 
+.btn.danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;
