@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "REPLACE_WITH_GOOGLE_MAPS_API_KEY"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,16 +25,23 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aproduce.mobile"
+      "package": "com.aproduce.mobile",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "config": {
+        "googleMaps": {
+          "apiKey": "REPLACE_WITH_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "owner": "aproduce",
+    "plugins": ["react-native-maps"],
     "extra": {
       "eas": {
-        "projectId": "cd75e5db-7f42-42ed-bd86-cb30c788ea4c"
+        "projectId": "51815d95-533d-416d-8bf6-39a2cdd50e88"
       }
-    },
-    "owner": "aproduce"
+    }
   }
 }
