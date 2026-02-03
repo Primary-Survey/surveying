@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Alert,
   FlatList,
   Pressable,
@@ -12,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
@@ -20,7 +18,7 @@ import { supabase } from '../supabase/client';
 import { DataPoint, Project } from '../types';
 import { useTheme } from '../theme/ThemeProvider';
 
-type ViewMode = 'list' | 'map';
+// Map view removed (was crashing on some devices)
 
 export default function DashboardScreen() {
   const { colors, toggle, mode } = useTheme();
@@ -28,7 +26,6 @@ export default function DashboardScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [points, setPoints] = useState<DataPoint[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [saving, setSaving] = useState(false);
@@ -43,21 +40,6 @@ export default function DashboardScreen() {
     return points
       .filter((p) => p.project_id === selectedProjectId && !p.deleted)
       .sort((a, b) => (a.point_index || 0) - (b.point_index || 0));
-  }, [points, selectedProjectId]);
-
-  const mapPoints = useMemo(() => {
-    const src = selectedProjectId
-      ? points.filter((p) => p.project_id === selectedProjectId)
-      : points;
-    return src
-      .filter((p) => !p.deleted && p.lat != null && p.lng != null)
-      .map((p) => ({
-        ...p,
-        // Supabase can return numeric columns as strings depending on schema/client.
-        lat: typeof p.lat === 'string' ? Number(p.lat) : p.lat,
-        lng: typeof p.lng === 'string' ? Number(p.lng) : p.lng,
-      }))
-      .filter((p) => Number.isFinite(p.lat as number) && Number.isFinite(p.lng as number));
   }, [points, selectedProjectId]);
 
   useEffect(() => {
@@ -323,18 +305,6 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.toggleRow}>
-        <Pressable
-          style={[styles.toggleButton, viewMode === 'list' && styles.toggleActive]}
-          onPress={() => setViewMode('list')}
-        >
-          <Text style={styles.toggleText}>List view</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggleButton, viewMode === 'map' && styles.toggleActive]}
-          onPress={() => setViewMode('map')}
-        >
-          <Text style={styles.toggleText}>Map view</Text>
-        </Pressable>
         <Pressable style={styles.toggleButton} onPress={toggle}>
           <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
@@ -351,28 +321,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {viewMode === 'map' ? (
-        <MapView
-          style={styles.map}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={{
-            latitude: (mapPoints[0]?.lat as number | undefined) ?? 49.2827,
-            longitude: (mapPoints[0]?.lng as number | undefined) ?? -123.1207,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
-          }}
-        >
-          {mapPoints.map((p) => (
-            <Marker
-              key={p.id}
-              coordinate={{ latitude: p.lat as number, longitude: p.lng as number }}
-              title={`Point ${p.point_index ?? ''}`}
-              description={p.descriptor || ''}
-            />
-          ))}
-        </MapView>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.sectionTitle}>Projects</Text>
           <FlatList
             data={projects}
@@ -461,7 +410,6 @@ export default function DashboardScreen() {
             </View>
           )}
         </ScrollView>
-      )}
     </SafeAreaView>
   );
 }
