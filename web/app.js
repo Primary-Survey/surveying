@@ -691,8 +691,20 @@ async function handleSaveProjectEdits() {
 }
 
 async function deleteProjectById(projectId, silent = false) {
-  const { error } = await client.from('projects').delete().eq('id', projectId);
-  if (error) throw error;
+  // Prefer an RPC so we can delete under RLS reliably (Security Definer function on Supabase).
+  // If the RPC is not installed yet, we fall back to direct deletes.
+  const { error: rpcErr } = await client.rpc('delete_project_cascade', { project_id: projectId });
+
+  if (rpcErr) {
+    setStatus(`Delete RPC failed: ${rpcErr.message}`, 'error');
+
+    // Fallback to direct deletes. This may fail if RLS forbids deletes.
+    const { error: ptsErr } = await client.from('data_points').delete().eq('project_id', projectId);
+    if (ptsErr) throw ptsErr;
+
+    const { error } = await client.from('projects').delete().eq('id', projectId);
+    if (error) throw error;
+  }
 
   // Refresh and reset selection if needed.
   const currentSelected = $('projectSelect')?.value || '';

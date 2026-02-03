@@ -14,7 +14,7 @@ export default function HomeScreen() {
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: any) => {
       setEmail(data?.session?.user?.email ?? null);
       if (!data?.session) navigation.replace('Login');
     });
@@ -30,15 +30,18 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.topRight}>
+        <Pressable style={styles.toggleButton} onPress={toggle}>
+          <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>Welcome</Text>
             <Text style={styles.subtitle}>Signed in as {email || 'unknown'}</Text>
           </View>
-          <Pressable style={styles.toggleButton} onPress={toggle}>
-            <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
-          </Pressable>
         </View>
 
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Dashboard')}>
@@ -55,68 +58,74 @@ export default function HomeScreen() {
 
 const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: colors.card,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 12,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  subtitle: {
-    color: colors.muted,
-  },
-  primaryButton: {
-    marginTop: 8,
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: colors.primaryText,
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: colors.buttonBg,
-  },
-  secondaryButtonText: {
-    color: colors.text,
-    fontWeight: '700',
-  },
-  toggleButton: {
-    backgroundColor: colors.buttonBg,
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  toggleText: {
-    color: colors.text,
-    fontWeight: '700',
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    topRight: {
+      position: 'absolute',
+      top: 10,
+      right: 12,
+      zIndex: 10,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 420,
+      backgroundColor: colors.card,
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 12,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    subtitle: {
+      color: colors.muted,
+    },
+    primaryButton: {
+      marginTop: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    primaryButtonText: {
+      color: colors.primaryText,
+      fontWeight: '800',
+    },
+    secondaryButton: {
+      paddingVertical: 12,
+      borderRadius: 10,
+      alignItems: 'center',
+      backgroundColor: colors.buttonBg,
+    },
+    secondaryButtonText: {
+      color: colors.text,
+      fontWeight: '700',
+    },
+    toggleButton: {
+      backgroundColor: colors.buttonBg,
+      borderColor: colors.border,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    toggleText: {
+      color: colors.text,
+      fontWeight: '700',
+    },
+  });

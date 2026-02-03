@@ -360,7 +360,7 @@ select:focus {
   padding: 12px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--panel2);
   cursor: pointer;
 }
 
@@ -389,6 +389,7 @@ select:focus {
 
 .project-item.selected {
   border-color: var(--accent);
+  background: var(--panel);
 }
 
 .project-item.selected .project-edit {

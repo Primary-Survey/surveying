@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Alert,
   FlatList,
   Pressable,
@@ -11,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
@@ -48,7 +49,15 @@ export default function DashboardScreen() {
     const src = selectedProjectId
       ? points.filter((p) => p.project_id === selectedProjectId)
       : points;
-    return src.filter((p) => !p.deleted && p.lat != null && p.lng != null);
+    return src
+      .filter((p) => !p.deleted && p.lat != null && p.lng != null)
+      .map((p) => ({
+        ...p,
+        // Supabase can return numeric columns as strings depending on schema/client.
+        lat: typeof p.lat === 'string' ? Number(p.lat) : p.lat,
+        lng: typeof p.lng === 'string' ? Number(p.lng) : p.lng,
+      }))
+      .filter((p) => Number.isFinite(p.lat as number) && Number.isFinite(p.lng as number));
   }, [points, selectedProjectId]);
 
   useEffect(() => {
@@ -64,6 +73,42 @@ export default function DashboardScreen() {
       setEditAddress('');
     }
   }, [selectedProject]);
+
+  const deleteProjectCascade = async (projectId: string) => {
+    // Prefer RPC that can bypass RLS (must be installed in Supabase).
+    const { error: rpcErr } = await supabase.rpc('delete_project_cascade', {
+      project_id: projectId,
+    });
+    if (!rpcErr) return;
+
+    // Fallback to direct deletes (may fail under RLS)
+    const { error: ptsErr } = await supabase.from('data_points').delete().eq('project_id', projectId);
+    if (ptsErr) throw ptsErr;
+
+    const { error: projErr } = await supabase.from('projects').delete().eq('id', projectId);
+    if (projErr) throw projErr;
+  };
+
+  const deleteProjectsWithNoPoints = async (projData: Project[], pointData: DataPoint[]) => {
+    // Requirement: If a project has no (non-deleted) data points, delete it from the DB.
+    const counts = new Map<string, number>();
+    for (const p of pointData) {
+      if (p.deleted) continue;
+      counts.set(p.project_id, (counts.get(p.project_id) || 0) + 1);
+    }
+
+    const emptyIds = projData
+      .map((p) => p.id)
+      .filter((id) => (counts.get(id) || 0) === 0);
+
+    if (!emptyIds.length) return;
+
+    await Promise.all(emptyIds.map((id) => deleteProjectCascade(id)));
+
+    if (selectedProjectId && emptyIds.includes(selectedProjectId)) {
+      setSelectedProjectId(null);
+    }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -81,9 +126,25 @@ export default function DashboardScreen() {
         .order('point_index', { ascending: true });
       if (pointErr) throw pointErr;
 
-      setProjects(projData || []);
-      setPoints(pointData || []);
-      if (selectedProjectId && !(projData || []).some((p) => p.id === selectedProjectId)) {
+      // Purge empty projects (per requirement), then re-fetch for a consistent view.
+      await deleteProjectsWithNoPoints(projData || [], pointData || []);
+
+      const { data: projData2, error: projErr2 } = await supabase
+        .from('projects')
+        .select('id,name,address,created_at')
+        .order('name', { ascending: true });
+      if (projErr2) throw projErr2;
+
+      const { data: pointData2, error: pointErr2 } = await supabase
+        .from('data_points')
+        .select('id,project_id,point_index,lat,lng,descriptor,created_at,source,deleted')
+        .order('project_id', { ascending: true })
+        .order('point_index', { ascending: true });
+      if (pointErr2) throw pointErr2;
+
+      setProjects(projData2 || []);
+      setPoints(pointData2 || []);
+      if (selectedProjectId && !(projData2 || []).some((p: Project) => p.id === selectedProjectId)) {
         setSelectedProjectId(null);
       }
     } catch (err: any) {
@@ -110,11 +171,16 @@ export default function DashboardScreen() {
 
       if (remaining && remaining.length) {
         await Promise.all(
-          remaining.map((row, idx) =>
+          remaining.map((row: any, idx: number) =>
             supabase.from('data_points').update({ point_index: idx + 1 }).eq('id', row.id)
           )
         );
+      } else if (selectedProjectId) {
+        // If the last point was deleted, delete the project entirely (per requirement).
+        await deleteProjectCascade(selectedProjectId);
+        setSelectedProjectId(null);
       }
+
       await refresh();
     } catch (err: any) {
       Alert.alert('Delete failed', err?.message || String(err));
@@ -140,17 +206,35 @@ export default function DashboardScreen() {
   };
 
   const buildExportFilename = (ext: string) => {
-    const name = selectedProject?.name?.trim() || 'All Projects';
-    const date = new Date();
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const rawName = selectedProject?.name?.trim() || 'All Projects';
+    const safeName = rawName.replace(/[\\/:*?"<>|]/g, '-');
+
+    // Use the date the project was uploaded/created (not "today").
+    const createdAt = selectedProject?.created_at ? new Date(selectedProject.created_at) : new Date();
+    const y = createdAt.getFullYear();
+    const m = String(createdAt.getMonth() + 1).padStart(2, '0');
+    const d = String(createdAt.getDate()).padStart(2, '0');
     const stamp = `${y}-${m}-${d}`;
-    return `${name} - Survey - ${stamp}.${ext}`;
+
+    return `${safeName} - Survey - ${stamp}.${ext}`;
   };
 
   const exportCsv = async () => {
-    if (!selectedProjectId) return;
+    if (!selectedProjectId) {
+      Alert.alert('Select a project', 'Choose a project first.');
+      return;
+    }
+    if (!projectPoints.length) {
+      Alert.alert('No points', 'This project has no points to export.');
+      return;
+    }
+
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Not supported', 'File sharing is not available on this device.');
+      return;
+    }
+
     const rows = projectPoints.map((p) => ({
       point_index: p.point_index,
       descriptor: p.descriptor || '',
@@ -163,16 +247,39 @@ export default function DashboardScreen() {
     const lines = [header.join(',')].concat(
       rows.map((r) => header.map((k) => escapeCsv(r[k as keyof typeof r])).join(','))
     );
+
     const filename = buildExportFilename('csv');
-    const fileUri = FileSystem.documentDirectory + filename;
+    const fileUri = ((FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory) + filename;
+
     await FileSystem.writeAsStringAsync(fileUri, lines.join('\n'), {
-      encoding: FileSystem.EncodingType.UTF8,
+      // Some TS types are flaky across expo-file-system versions; at runtime this is fine.
+      // @ts-expect-error
+      encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
     });
-    await Sharing.shareAsync(fileUri);
+
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'text/csv',
+      dialogTitle: 'Share CSV',
+      UTI: 'public.comma-separated-values-text',
+    });
   };
 
   const exportXlsx = async () => {
-    if (!selectedProjectId) return;
+    if (!selectedProjectId) {
+      Alert.alert('Select a project', 'Choose a project first.');
+      return;
+    }
+    if (!projectPoints.length) {
+      Alert.alert('No points', 'This project has no points to export.');
+      return;
+    }
+
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Not supported', 'File sharing is not available on this device.');
+      return;
+    }
+
     const rows = projectPoints.map((p) => ({
       point_index: p.point_index,
       descriptor: p.descriptor || '',
@@ -181,16 +288,26 @@ export default function DashboardScreen() {
       source: p.source,
       created_at: p.created_at,
     }));
+
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, ws, 'data_points');
+
     const filename = buildExportFilename('xlsx');
-    const uri = FileSystem.documentDirectory + filename;
+    const uri = ((FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory) + filename;
+
     const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
     await FileSystem.writeAsStringAsync(uri, wbout, {
-      encoding: FileSystem.EncodingType.Base64,
+      // @ts-expect-error
+      encoding: FileSystem.EncodingType?.Base64 || 'base64',
     });
-    await Sharing.shareAsync(uri);
+
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      dialogTitle: 'Share XLSX',
+      UTI: 'org.openxmlformats.spreadsheetml.sheet',
+    });
   };
 
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -237,9 +354,10 @@ export default function DashboardScreen() {
       {viewMode === 'map' ? (
         <MapView
           style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={{
-            latitude: mapPoints[0]?.lat ?? 49.2827,
-            longitude: mapPoints[0]?.lng ?? -123.1207,
+            latitude: (mapPoints[0]?.lat as number | undefined) ?? 49.2827,
+            longitude: (mapPoints[0]?.lng as number | undefined) ?? -123.1207,
             latitudeDelta: 0.08,
             longitudeDelta: 0.08,
           }}
@@ -247,7 +365,7 @@ export default function DashboardScreen() {
           {mapPoints.map((p) => (
             <Marker
               key={p.id}
-              coordinate={{ latitude: p.lat!, longitude: p.lng! }}
+              coordinate={{ latitude: p.lat as number, longitude: p.lng as number }}
               title={`Point ${p.point_index ?? ''}`}
               description={p.descriptor || ''}
             />
@@ -287,6 +405,35 @@ export default function DashboardScreen() {
                 disabled={saving}
               >
                 <Text style={styles.primaryText}>{saving ? 'Saving...' : 'Save changes'}</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.dangerButton}
+                onPress={() => {
+                  if (!selectedProjectId) return;
+                  Alert.alert(
+                    'Delete project?',
+                    'This will delete the project and all its points.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await deleteProjectCascade(selectedProjectId);
+                            setSelectedProjectId(null);
+                            await refresh();
+                          } catch (err: any) {
+                            Alert.alert('Delete failed', err?.message || String(err));
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.dangerText}>Delete project</Text>
               </Pressable>
             </View>
           )}
@@ -468,5 +615,16 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
   deleteText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  dangerButton: {
+    marginTop: 8,
+    backgroundColor: colors.danger,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  dangerText: {
+    color: '#fff',
+    fontWeight: '800',
   },
 });
