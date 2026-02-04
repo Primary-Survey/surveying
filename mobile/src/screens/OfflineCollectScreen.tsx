@@ -46,6 +46,26 @@ type OfflineProject = {
 const STORAGE_KEY = 'offline_projects_v1';
 const PENDING_UPLOAD_KEY = 'offline_pending_upload_project_id_v1';
 
+// Approximate WGS84 meters-per-degree formulas for small local offsets.
+function metersPerDegreeLat(latDeg: number) {
+  const lat = (latDeg * Math.PI) / 180;
+  return (
+    111132.92 -
+    559.82 * Math.cos(2 * lat) +
+    1.175 * Math.cos(4 * lat) -
+    0.0023 * Math.cos(6 * lat)
+  );
+}
+
+function metersPerDegreeLng(latDeg: number) {
+  const lat = (latDeg * Math.PI) / 180;
+  return (
+    111412.84 * Math.cos(lat) -
+    93.5 * Math.cos(3 * lat) +
+    0.118 * Math.cos(5 * lat)
+  );
+}
+
 export default function OfflineCollectScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, toggle, mode } = useTheme();
@@ -77,6 +97,38 @@ export default function OfflineCollectScreen() {
     () => projects.find((p) => p.id === selectedProjectId) || null,
     [projects, selectedProjectId]
   );
+
+  const selectedPoint = useMemo(() => {
+    if (!selectedProject || !selectedPointId) return null;
+    return selectedProject.points.find((pt) => pt.id === selectedPointId) || null;
+  }, [selectedProject, selectedPointId]);
+
+  // While collecting, if a point is highlighted, show real-time N/S/E/W offsets from it.
+  const liveOffsetMeters = useMemo(() => {
+    if (screen !== 'collect') return null;
+    if (!selectedPoint) return null;
+    if (!position?.coords) return null;
+
+    const refLat = selectedPoint.lat;
+    const refLng = selectedPoint.lng;
+    const curLat = position.coords.latitude;
+    const curLng = position.coords.longitude;
+
+    const dLat = curLat - refLat;
+    const dLng = curLng - refLng;
+
+    const northM = dLat * metersPerDegreeLat(refLat);
+    const eastM = dLng * metersPerDegreeLng(refLat);
+
+    const round2 = (n: number) => Number(n.toFixed(2));
+
+    return {
+      n: round2(Math.max(northM, 0)),
+      s: round2(Math.max(-northM, 0)),
+      e: round2(Math.max(eastM, 0)),
+      w: round2(Math.max(-eastM, 0)),
+    };
+  }, [position, screen, selectedPoint]);
 
   useEffect(() => {
     (async () => {
@@ -524,6 +576,16 @@ export default function OfflineCollectScreen() {
                     ? 'Live GPS…'
                     : 'No location yet'}
               </Text>
+
+              {liveOffsetMeters ? (
+                <Text style={styles.offsetReadout}>
+                  {`N: ${liveOffsetMeters.n.toFixed(2)}m  S: ${liveOffsetMeters.s.toFixed(
+                    2
+                  )}m  E: ${liveOffsetMeters.e.toFixed(2)}m  W: ${liveOffsetMeters.w.toFixed(
+                    2
+                  )}m`}
+                </Text>
+              ) : null}
             </View>
 
             {selectedProject ? (
@@ -753,6 +815,12 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
     coords: {
       color: colors.muted,
       fontSize: 12,
+    },
+    offsetReadout: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '800',
+      marginTop: 2,
     },
     sectionTitle: {
       fontSize: 16,

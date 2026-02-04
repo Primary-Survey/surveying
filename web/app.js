@@ -519,6 +519,19 @@ function updateProjectListSelection(selectedProjectId) {
 
 function onSelectionChanged(renderStatus = true) {
   const selectedProjectId = $('projectSelect').value || '';
+
+  // Before a project is chosen, don't show the points table at all.
+  const wrap = $('pointsTableWrap');
+  if (!selectedProjectId) {
+    if (wrap) wrap.style.display = 'none';
+    renderMapForSelection('');
+    updateProjectListSelection('');
+    if (renderStatus) setStatus('Select a project to view points.', 'muted');
+    return;
+  }
+
+  if (wrap) wrap.style.display = 'block';
+
   const rows = buildRows(allProjects, allPoints, selectedProjectId);
   renderTable(rows);
   renderMapForSelection(selectedProjectId);
