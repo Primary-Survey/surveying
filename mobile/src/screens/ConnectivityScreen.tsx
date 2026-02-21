@@ -409,9 +409,7 @@ export default function ConnectivityScreen() {
               <Text style={styles.meta}>{`Fix: ${fix.quality} | Satellites: ${fix.satellites ?? 'n/a'} | HDOP: ${
                 fix.hdop ?? 'n/a'
               }`}</Text>
-              <Text style={styles.meta}>{`Lat: ${fix.lat.toFixed(6)}  Lng: ${fix.lng.toFixed(6)}  (+/-${Math.round(
-                fix.accuracy_m ?? 0
-              )}m)`}</Text>
+              <Text style={styles.meta}>{`Lat: ${fix.lat.toFixed(6)}  Lng: ${fix.lng.toFixed(6)}`}</Text>
             </>
           ) : roverState.connected ? (
             <Text style={styles.warning}>No rover fix yet.</Text>

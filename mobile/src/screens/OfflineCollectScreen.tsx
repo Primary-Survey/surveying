@@ -645,7 +645,7 @@ export default function OfflineCollectScreen() {
                       watching ? '' : ' (paused)'
                     }`} - Lat: ${activePosition.lat.toFixed(6)}  Lng: ${activePosition.lng.toFixed(
                       6
-                    )}  (+/-${Math.round(activePosition.accuracy ?? 0)}m)`
+                    )}`
                   : roverState.connected
                     ? 'Rover connected - waiting for GNSS fix...'
                     : watching

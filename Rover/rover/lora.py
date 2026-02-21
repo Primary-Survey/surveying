@@ -234,21 +234,19 @@ class SerialLoRaCorrectionReceiver:
             return
         self._rx_buf += chunk
         prefix_len = len(HB_PREFIX)
-        keep_tail = max(prefix_len - 1, 0)
 
         while True:
             start = self._rx_buf.find(HB_PREFIX)
             if start < 0:
-                # No heartbeat prefix found; flush most of the buffer as data,
-                # but keep a small tail in case the prefix is split across reads.
-                if keep_tail == 0:
-                    data = self._rx_buf
-                    self._rx_buf = b""
-                elif len(self._rx_buf) <= keep_tail:
-                    return
-                else:
+                # No heartbeat prefix found; flush data, but keep only the
+                # minimal suffix that could be the start of HB_PREFIX.
+                keep_tail = self._prefix_overlap_tail_len(self._rx_buf)
+                if keep_tail > 0:
                     data = self._rx_buf[:-keep_tail]
                     self._rx_buf = self._rx_buf[-keep_tail:]
+                else:
+                    data = self._rx_buf
+                    self._rx_buf = b""
                 self._emit_data(data)
                 return
 
@@ -320,3 +318,14 @@ class SerialLoRaCorrectionReceiver:
             self.on_correction_bytes(payload)
         except Exception as exc:
             self.logger.warning("Correction callback failed: %s", exc)
+
+    def _prefix_overlap_tail_len(self, data: bytes) -> int:
+        """
+        Return the largest suffix length of `data` that matches a prefix of
+        HB_PREFIX, excluding the full-prefix case (handled by find()).
+        """
+        max_tail = min(len(data), max(len(HB_PREFIX) - 1, 0))
+        for n in range(max_tail, 0, -1):
+            if data.endswith(HB_PREFIX[:n]):
+                return n
+        return 0
