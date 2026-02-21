@@ -1,0 +1,64 @@
+device_id: "BASE-PI4-01"
+update_hz: 5.0
+
+logging:
+  level: "INFO"
+  file_path: "logs/rtk-base.log"
+
+# Correction source:
+# - simulate: sends test payload bytes over LoRa (good for verifying the radio link)
+# - serial: forwards RTCM bytes read from a GNSS receiver's serial port (real RTK base)
+corrections:
+  mode: "serial"
+  serial_port: "/dev/ttyACM0"
+  baudrate: 115200
+  read_timeout_s: 0.2
+  read_chunk_bytes: 1024
+  fallback_to_sim: false
+  simulate_interval_s: 0.25
+  simulate_chunk_bytes: 80
+  simulate_prefix: "RTCMTEST"
+
+lora:
+  enabled: true
+  # "serial" for transparent UART radios, "sx126x_spi" for Waveshare SX1262 LoRaWAN/GNSS HAT.
+  transport: "serial"
+
+  # Serial (transparent UART radios)
+  serial_port: "/dev/ttyS0"
+  baudrate: 9600
+  write_timeout_s: 0.2
+
+  # Waveshare SX1262 915MHz UART HAT: configure module at startup via M0/M1.
+  # Set to false for generic UART radios that do not expose these control pins.
+  uart_hat_auto_config: true
+  uart_hat_m0_pin: 22
+  uart_hat_m1_pin: 27
+  uart_hat_address: 65535
+  uart_hat_air_speed: 2400
+  uart_hat_buffer_size: 240
+  uart_hat_persist: true
+
+  # SX126x SPI (Waveshare SX1262 LoRaWAN/GNSS HAT) wiring (BCM GPIO numbers)
+  spi_bus_id: 0
+  spi_cs_id: 0
+  reset_pin: 18
+  busy_pin: 20
+  irq_pin: 16
+  txen_pin: 6
+  rxen_pin: -1
+
+  # SX126x RF/profile params
+  tx_power_dbm: 22
+  sync_word: 0x3444
+  spreading_factor: 7
+  bandwidth_hz: 125000
+  coding_rate: 5
+  preamble_length: 12
+  crc_enabled: true
+  max_payload_bytes: 240
+
+  frequency_mhz: 913.0
+  network_id: 18
+  heartbeat_enabled: true
+  heartbeat_interval_s: 1.0

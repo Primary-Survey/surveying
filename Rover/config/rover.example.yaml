@@ -1,0 +1,86 @@
+device_id: "ROVER-PI4-01"
+update_hz: 5.0
+
+logging:
+  level: "INFO"
+  file_path: "logs/rtk-rover.log"
+
+gnss:
+  enabled: true
+  simulate_without_hardware: false
+  serial_port: "/dev/ttyACM0"
+  baudrate: 115200
+  read_timeout_s: 0.2
+  # Stanley Park, Vancouver, BC (simulation default)
+  sim_lat: 49.304300
+  sim_lng: -123.144300
+  sim_alt_m: 20.0
+
+lora:
+  enabled: true
+  # "serial" for transparent UART radios, "sx126x_spi" for Waveshare SX1262 LoRaWAN/GNSS HAT.
+  transport: "serial"
+
+  # Serial (transparent UART radios)
+  serial_port: "/dev/ttyS0"
+  baudrate: 9600
+  read_timeout_s: 0.1
+  receive_chunk_bytes: 512
+
+  # Waveshare SX1262 915MHz UART HAT: configure module at startup via M0/M1.
+  # Set to false for generic UART radios that do not expose these control pins.
+  uart_hat_auto_config: true
+  uart_hat_m0_pin: 22
+  uart_hat_m1_pin: 27
+  uart_hat_address: 65535
+  uart_hat_air_speed: 2400
+  uart_hat_buffer_size: 240
+  uart_hat_persist: true
+
+  # SX126x SPI (Waveshare SX1262 LoRaWAN/GNSS HAT) wiring (BCM GPIO numbers)
+  spi_bus_id: 0
+  spi_cs_id: 0
+  reset_pin: 18
+  busy_pin: 20
+  irq_pin: 16
+  txen_pin: 6
+  rxen_pin: -1
+
+  # SX126x RF/profile params
+  tx_power_dbm: 22
+  sync_word: 0x3444
+  spreading_factor: 7
+  bandwidth_hz: 125000
+  coding_rate: 5
+  preamble_length: 12
+  crc_enabled: true
+
+  correction_timeout_s: 10.0
+  frequency_mhz: 913.0
+  network_id: 18
+
+bluetooth:
+  enabled: true
+  service_name: "RTK-Rover"
+  service_uuid: "00001101-0000-1000-8000-00805F9B34FB"
+  channel: 4
+  broadcast_hz: 4.0
+
+oled:
+  enabled: false
+  width: 128
+  height: 64
+  i2c_port: 1
+  i2c_address: 60
+  rotate: 0
+  refresh_interval_s: 0.5
+  logo_path: "assets/logo.png"
+
+# Base-station profile values are included so rover and base stay aligned.
+base_station:
+  station_id: "BASE-01"
+  correction_format: "RTCM3"
+  lora_frequency_mhz: 913.0
+  lora_bandwidth_khz: 125
+  lora_spreading_factor: 7
+  lora_coding_rate: "4/5"
