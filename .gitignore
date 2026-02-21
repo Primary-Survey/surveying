@@ -14,3 +14,22 @@ Thumbs.db
 
 # Build/deploy artifacts
 web_upload/
+
+# Local secrets (do not commit)
+ssh.txt
+
+# Mobile build artifacts
+mobile/artifact-*.tar.gz
+mobile/extracted-*/
+
+# Rover runtime
+Rover/.venv/
+Rover/logs/
+Rover/config/rover.yaml
+__pycache__/
+*.pyc
+
+# Base runtime
+Base/.venv/
+Base/logs/
+Base/config/base.yaml

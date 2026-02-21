@@ -1,0 +1,29 @@
+[Unit]
+Description=RTK Rover Service
+After=network-online.target bluetooth.target rtk-bt-agent.service
+Wants=network-online.target rtk-bt-agent.service
+
+[Service]
+Type=simple
+PermissionsStartOnly=true
+# Some Pi images soft-block Bluetooth via rfkill; unblock + power on for SPP.
+ExecStartPre=-/usr/sbin/rfkill unblock bluetooth
+ExecStartPre=-/usr/bin/bluetoothctl power on
+ExecStartPre=-/usr/bin/bluetoothctl discoverable-timeout 0
+ExecStartPre=-/usr/bin/bluetoothctl discoverable on
+ExecStartPre=-/usr/bin/bluetoothctl pairable on
+ExecStartPre=-/usr/bin/bluetoothctl system-alias RTK-Rover
+# Register SPP service record (Android uses SDP to map UUID -> RFCOMM channel).
+ExecStartPre=-/usr/bin/sdptool add --channel=4 SP
+User=primary
+Group=primary
+WorkingDirectory=/opt/rtk-rover
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/rtk-rover/.venv/bin/python -m rover.main --config /opt/rtk-rover/config/rover.yaml
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

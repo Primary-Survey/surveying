@@ -1,0 +1,22 @@
+[Unit]
+Description=RTK Base Station Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+PermissionsStartOnly=true
+# Ensure likely LoRa UART device nodes are accessible to the service user.
+ExecStartPre=-/bin/sh -c 'for p in /dev/ttyS0 /dev/ttyUSB0 /dev/ttyUSB1 /dev/serial/by-id/*; do [ -e "$p" ] || continue; /usr/bin/chgrp dialout "$p"; /usr/bin/chmod 0660 "$p"; done'
+User=pi
+Group=pi
+WorkingDirectory=/opt/rtk-base
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/rtk-base/.venv/bin/python -m base_station.main --config /opt/rtk-base/config/base.yaml
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

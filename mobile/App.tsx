@@ -7,6 +7,7 @@ import OfflineCollectScreen from './src/screens/OfflineCollectScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import ConnectivityScreen from './src/screens/ConnectivityScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 
 export type RootStackParamList = {
@@ -15,6 +16,7 @@ export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   Dashboard: undefined;
+  Connectivity: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -55,6 +57,7 @@ function AppContent() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Connectivity" component={ConnectivityScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

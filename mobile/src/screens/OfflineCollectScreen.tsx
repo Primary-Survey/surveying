@@ -21,6 +21,10 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../supabase/client';
 import { useTheme } from '../theme/ThemeProvider';
+import {
+  roverBluetoothClient,
+  type RoverLinkState,
+} from '../services/roverBluetooth';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Offline'>;
 
@@ -88,6 +92,7 @@ export default function OfflineCollectScreen() {
   const [watching, setWatching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [roverState, setRoverState] = useState<RoverLinkState>(roverBluetoothClient.getState());
 
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [editingPointId, setEditingPointId] = useState<string | null>(null);
@@ -103,16 +108,51 @@ export default function OfflineCollectScreen() {
     return selectedProject.points.find((pt) => pt.id === selectedPointId) || null;
   }, [selectedProject, selectedPointId]);
 
+  const roverFix = useMemo(() => {
+    const lastAt = roverState.lastTelemetryAtMs;
+    if (!roverState.connected) return null;
+    if (!lastAt) return null;
+    if (Date.now() - lastAt > 3000) return null;
+    return roverState.telemetry?.fix ?? null;
+  }, [roverState.connected, roverState.lastTelemetryAtMs, roverState.telemetry]);
+
+  const activePosition = useMemo(() => {
+    if (roverState.connected) {
+      if (!roverFix) return null;
+      return {
+        lat: roverFix.lat,
+        lng: roverFix.lng,
+        accuracy: roverFix.accuracy_m,
+        source: 'rover' as const,
+      };
+    }
+    if (roverFix) {
+      return {
+        lat: roverFix.lat,
+        lng: roverFix.lng,
+        accuracy: roverFix.accuracy_m,
+        source: 'rover' as const,
+      };
+    }
+    if (!position?.coords) return null;
+    return {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      accuracy: position.coords.accuracy ?? null,
+      source: 'phone' as const,
+    };
+  }, [position, roverFix, roverState.connected]);
+
   // While collecting, if a point is highlighted, show real-time N/S/E/W offsets from it.
   const liveOffsetMeters = useMemo(() => {
     if (screen !== 'collect') return null;
     if (!selectedPoint) return null;
-    if (!position?.coords) return null;
+    if (!activePosition) return null;
 
     const refLat = selectedPoint.lat;
     const refLng = selectedPoint.lng;
-    const curLat = position.coords.latitude;
-    const curLng = position.coords.longitude;
+    const curLat = activePosition.lat;
+    const curLng = activePosition.lng;
 
     const dLat = curLat - refLat;
     const dLng = curLng - refLng;
@@ -128,7 +168,7 @@ export default function OfflineCollectScreen() {
       e: round2(Math.max(eastM, 0)),
       w: round2(Math.max(-eastM, 0)),
     };
-  }, [position, screen, selectedPoint]);
+  }, [activePosition, screen, selectedPoint]);
 
   useEffect(() => {
     (async () => {
@@ -144,10 +184,15 @@ export default function OfflineCollectScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = roverBluetoothClient.onState(setRoverState);
+    return unsubscribe;
+  }, []);
+
   // Live GPS updates while on the collection screen.
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
-    const shouldWatch = hasPermission && screen === 'collect';
+    const shouldWatch = hasPermission && screen === 'collect' && !roverState.connected;
 
     (async () => {
       if (!shouldWatch) {
@@ -180,7 +225,7 @@ export default function OfflineCollectScreen() {
       } catch {}
       setWatching(false);
     };
-  }, [hasPermission, screen]);
+  }, [hasPermission, roverState.connected, screen]);
 
   const loadProjects = async () => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -200,6 +245,12 @@ export default function OfflineCollectScreen() {
   }, []);
 
   const refreshLocation = async () => {
+    if (roverState.connected) {
+      if (!roverFix) {
+        Alert.alert('Waiting for rover fix', 'Rover is connected but no GNSS fix is available yet.');
+      }
+      return;
+    }
     if (!hasPermission) {
       Alert.alert('No permission', 'Location permission is required to collect GPS points.');
       return;
@@ -245,23 +296,41 @@ export default function OfflineCollectScreen() {
       Alert.alert('Select a project', 'Create or select an offline project first.');
       return;
     }
-    if (!hasPermission) {
+    if (roverState.connected && !roverFix) {
+      Alert.alert('Waiting for rover fix', 'Rover is connected but no GNSS fix is available yet.');
+      return;
+    }
+    if (!hasPermission && !roverFix) {
       Alert.alert('No permission', 'Location permission is required to collect GPS points.');
       return;
     }
 
     setSaving(true);
     try {
-      const pos =
-        position ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }));
+      let lat: number;
+      let lng: number;
+      let accuracy: number | null | undefined;
+
+      if (roverFix) {
+        lat = roverFix.lat;
+        lng = roverFix.lng;
+        accuracy = roverFix.accuracy_m;
+      } else {
+        const pos =
+          position ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        accuracy = pos.coords.accuracy;
+        setPosition(pos);
+      }
 
       const point: OfflinePoint = {
         id: String(Date.now()),
         created_at: new Date().toISOString(),
         descriptor: descriptor.trim() || undefined,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
+        lat,
+        lng,
+        accuracy,
       };
 
       const next = projects.map((p) =>
@@ -270,7 +339,6 @@ export default function OfflineCollectScreen() {
 
       await persistProjects(next);
       setDescriptor('');
-      setPosition(pos);
     } catch (e: any) {
       Alert.alert('Save error', e?.message || String(e));
     } finally {
@@ -421,6 +489,12 @@ export default function OfflineCollectScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topRight}>
+        <Pressable
+          style={styles.toggleButton}
+          onPress={() => navigation.navigate('Connectivity')}
+        >
+          <Text style={styles.toggleText}>Connectivity</Text>
+        </Pressable>
         <Pressable style={styles.toggleButton} onPress={toggle}>
           <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
@@ -441,7 +515,7 @@ export default function OfflineCollectScreen() {
 
         {permissionLoading ? (
           <ActivityIndicator />
-        ) : !hasPermission ? (
+        ) : !hasPermission && !roverState.connected ? (
           <Text style={styles.warning}>Location permission not granted.</Text>
         ) : null}
 
@@ -465,8 +539,8 @@ export default function OfflineCollectScreen() {
                         {p.name}
                       </Text>
                       <Text style={styles.projectChipMeta}>
-                        {p.address ? p.address + ' • ' : ''}{p.points.length} pts
-                        {p.uploaded_at ? ' • Uploaded' : ''}
+                        {p.address ? p.address + ' | ' : ''}{p.points.length} pts
+                        {p.uploaded_at ? ' | Uploaded' : ''}
                       </Text>
                     </View>
                   </Pressable>
@@ -532,7 +606,7 @@ export default function OfflineCollectScreen() {
                   >
                     <Text style={styles.primaryText}>
                       {uploading
-                        ? 'Uploading…'
+                        ? 'Uploading...'
                         : selectedProject.uploaded_at
                           ? 'Upload again'
                           : 'Upload project'}
@@ -561,20 +635,22 @@ export default function OfflineCollectScreen() {
                   <Text style={styles.secondaryText}>Refresh GPS</Text>
                 </Pressable>
                 <Pressable style={styles.primaryButton} onPress={addPoint} disabled={saving}>
-                  <Text style={styles.primaryText}>{saving ? 'Saving…' : 'Add Point'}</Text>
+                  <Text style={styles.primaryText}>{saving ? 'Saving...' : 'Add Point'}</Text>
                 </Pressable>
               </View>
 
               <Text style={styles.coords}>
-                {position
-                  ? `Live GPS${watching ? '' : ' (paused)'} • Lat: ${position.coords.latitude.toFixed(
+                {activePosition
+                  ? `${activePosition.source === 'rover' ? 'RTK Rover' : `Live GPS${
+                      watching ? '' : ' (paused)'
+                    }`} - Lat: ${activePosition.lat.toFixed(6)}  Lng: ${activePosition.lng.toFixed(
                       6
-                    )}  Lng: ${position.coords.longitude.toFixed(6)}  (±${Math.round(
-                      position.coords.accuracy ?? 0
-                    )}m)`
-                  : watching
-                    ? 'Live GPS…'
-                    : 'No location yet'}
+                    )}  (+/-${Math.round(activePosition.accuracy ?? 0)}m)`
+                  : roverState.connected
+                    ? 'Rover connected - waiting for GNSS fix...'
+                    : watching
+                      ? 'Live GPS...'
+                      : 'No location yet'}
               </Text>
 
               {liveOffsetMeters ? (
@@ -718,6 +794,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
       top: 34,
       right: 12,
       zIndex: 10,
+      flexDirection: 'row',
+      gap: 8,
     },
     content: {
       padding: 20,

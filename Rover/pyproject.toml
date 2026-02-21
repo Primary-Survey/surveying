@@ -1,0 +1,7 @@
+[project]
+name = "rtk-rover"
+version = "0.1.0"
+description = "Raspberry Pi RTK rover runtime (GNSS + LoRa + OLED + Bluetooth)"
+requires-python = ">=3.11"
+dependencies = []
+

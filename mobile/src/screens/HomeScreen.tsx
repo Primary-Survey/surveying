@@ -29,8 +29,14 @@ export default function HomeScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       <View style={styles.topRight}>
+        <Pressable
+          style={styles.toggleButton}
+          onPress={() => navigation.navigate('Connectivity')}
+        >
+          <Text style={styles.toggleText}>Connectivity</Text>
+        </Pressable>
         <Pressable style={styles.toggleButton} onPress={toggle}>
           <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
@@ -65,12 +71,14 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
       justifyContent: 'center',
       padding: 20,
     },
-    topRight: {
-      position: 'absolute',
-      top: 10,
-      right: 12,
-      zIndex: 10,
-    },
+  topRight: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    zIndex: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
     card: {
       width: '100%',
       maxWidth: 420,

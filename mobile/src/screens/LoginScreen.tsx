@@ -62,8 +62,14 @@ export default function LoginScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       <View style={styles.topRight}>
+        <Pressable
+          style={styles.toggleButton}
+          onPress={() => navigation.navigate('Connectivity')}
+        >
+          <Text style={styles.toggleText}>Connectivity</Text>
+        </Pressable>
         <Pressable style={styles.toggleButton} onPress={toggle}>
           <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
@@ -104,7 +110,7 @@ export default function LoginScreen() {
               <View style={styles.passwordRow}>
                 <TextInput
                   style={[styles.input, styles.passwordInput]}
-                  placeholder="••••••••"
+                  placeholder="********"
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
@@ -144,6 +150,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) =>
     top: 10,
     right: 12,
     zIndex: 10,
+    flexDirection: 'row',
+    gap: 8,
   },
   keyboard: {
     flex: 1,

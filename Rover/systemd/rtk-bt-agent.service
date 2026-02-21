@@ -1,0 +1,28 @@
+[Unit]
+Description=RTK Bluetooth Pairing Agent (NoInputNoOutput)
+After=bluetooth.target bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+Type=simple
+PermissionsStartOnly=true
+# Ensure the controller is usable for pairing/connecting.
+ExecStartPre=-/usr/sbin/rfkill unblock bluetooth
+ExecStartPre=-/usr/bin/bluetoothctl power on
+ExecStartPre=-/usr/bin/bluetoothctl discoverable-timeout 0
+ExecStartPre=-/usr/bin/bluetoothctl discoverable on
+ExecStartPre=-/usr/bin/bluetoothctl pairable on
+ExecStartPre=-/usr/bin/bluetoothctl system-alias RTK-Rover
+
+User=root
+Group=root
+WorkingDirectory=/opt/rtk-rover
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/rtk-rover/.venv/bin/python -m rover.bt_agent
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

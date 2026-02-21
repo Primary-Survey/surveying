@@ -14,13 +14,17 @@ import {
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../supabase/client';
 import { DataPoint, Project } from '../types';
 import { useTheme } from '../theme/ThemeProvider';
+import { RootStackParamList } from '../../App';
 
 // Map view removed (was crashing on some devices)
 
 export default function DashboardScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors, toggle, mode } = useTheme();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -305,6 +309,9 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.toggleRow}>
+        <Pressable style={styles.toggleButton} onPress={() => navigation.navigate('Connectivity')}>
+          <Text style={styles.toggleText}>Connectivity</Text>
+        </Pressable>
         <Pressable style={styles.toggleButton} onPress={toggle}>
           <Text style={styles.toggleText}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
         </Pressable>
@@ -396,7 +403,7 @@ export default function DashboardScreen() {
                     <Text style={styles.pointTitle}>Point {p.point_index}</Text>
                     <Text style={styles.pointText}>{p.descriptor || 'No descriptor'}</Text>
                     <Text style={styles.pointText}>
-                      Lat: {p.lat ?? 'n/a'} • Long: {p.lng ?? 'n/a'}
+                      Lat: {p.lat ?? 'n/a'} | Long: {p.lng ?? 'n/a'}
                     </Text>
                   </View>
                   <Pressable
